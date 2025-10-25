@@ -1,0 +1,67 @@
+import pandas as pd
+import os
+
+def load_netflix_data(filename='netflix_titles.csv') -> pd.DataFrame:
+    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', filename)
+    df = pd.read_csv(path)
+    return df
+import pandas as pd
+
+def clean_and_engineer(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    if 'date_added' in df.columns:
+        df['date_added'] = pd.to_datetime(df['date_added'], errors='coerce')
+    if 'release_year' in df.columns:
+        df['release_year'] = pd.to_numeric(df['release_year'], errors='coerce').astype('Int64')
+    if 'type' in df.columns:
+        df['type'] = df['type'].str.strip().str.title()
+    for col in ['country', 'listed_in']:
+        if col in df.columns:
+            df[col] = df[col].fillna('Unknown')
+            df[col + '_list'] = df[col].apply(lambda x: [i.strip() for i in str(x).split(',')] if x and x != 'Unknown' else [])
+    if 'listed_in' in df.columns:
+        df['primary_genre'] = df['listed_in'].fillna('Unknown').apply(lambda x: str(x).split(',')[0].strip())
+    return df
+import os
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+REPORT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'reports')
+FIG_PATH = os.path.join(REPORT_PATH, 'figures')
+os.makedirs(FIG_PATH, exist_ok=True)
+
+def save_fig(fig, name, dpi=150):
+    path = os.path.join(FIG_PATH, name)
+    fig.savefig(path, bbox_inches='tight', dpi=dpi)
+
+def plot_type_trend(df):
+    data = df.dropna(subset=['release_year']).groupby(['release_year', 'type']).size().reset_index(name='count')
+    fig, ax = plt.subplots(figsize=(10,6))
+    sns.lineplot(data=data, x='release_year', y='count', hue='type', marker='o', ax=ax)
+    ax.set_title('Movies vs TV Shows over Release Years')
+    ax.set_xlabel('Release Year')
+    ax.set_ylabel('Count')
+    save_fig(fig, 'type_trend.png')
+    plt.close(fig)
+
+def plot_top_genres(df, top_n=10):
+    genre_counts = df['primary_genre'].value_counts().nlargest(top_n)
+    fig, ax = plt.subplots(figsize=(8,6))
+    sns.barplot(x=genre_counts.values, y=genre_counts.index, ax=ax)
+    ax.set_title(f'Top {top_n} Genres on Netflix')
+    ax.set_xlabel('Number of Titles')
+    save_fig(fig, 'top_genres.png')
+    plt.close(fig)
+
+def plot_country_contrib(df, top_n=15):
+    if 'country_list' not in df.columns:
+        return
+    exploded = df.explode('country_list')
+    exploded['country_list'] = exploded['country_list'].replace('', 'Unknown')
+    counts = exploded['country_list'].value_counts().nlargest(top_n)
+    fig, ax = plt.subplots(figsize=(8,8))
+    sns.barplot(x=counts.values, y=counts.index, ax=ax)
+    ax.set_title(f'Top {top_n} Contributing Countries')
+    ax.set_xlabel('Number of Titles')
+    save_fig(fig, 'top_countries.png')
+    plt.close(fig)
