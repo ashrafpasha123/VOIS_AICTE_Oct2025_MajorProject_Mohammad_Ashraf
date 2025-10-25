@@ -1,1 +1,3 @@
-# VOIS_AICTE_Oct2025_MajorProject_Mohammad_Ashraf
+# Netflix Content Trends Analysis
+
+Project repository for Netflix content trends analysis.
